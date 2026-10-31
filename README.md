@@ -48,7 +48,7 @@ public/
   apps/            App Store sub-pages + gradient icons
   pdf-editor/      vendored PDF runtime assets (pdf.js worker, qpdf-wasm glue)
 Dockerfile         multi-stage image (Next standalone output) for the Kubernetes deploy
-k8s/               Kustomize manifests + deploy runbook (k8s/README.md)
+k8s/               Kustomize manifests (base + local overlay) + deploy runbook (k8s/README.md)
 .github/workflows/ builds and pushes the image to Google Artifact Registry
 ```
 
@@ -58,10 +58,12 @@ clipboard) and must not run during SSR/prerender.
 
 ## Deploy
 
-`render.yaml` deploys to Render as a Node web service (current). The home-lab
-Kubernetes path is documented step by step in [`k8s/README.md`](k8s/README.md):
-build the image with the `Dockerfile`, push to Artifact Registry via GitHub
-Actions, `kubectl apply -k k8s/base`.
+The site runs as a Node container on a home-lab Kubernetes cluster (SSR and
+API routes rule out a static export). The `Dockerfile` builds Next's standalone
+output, GitHub Actions pushes the image to Google Artifact Registry on pushes to
+`Portfolio_AD`, and `kubectl apply -k k8s/base` rolls it out behind ingress-nginx.
+The step-by-step runbook, including a registry-free path for testing on the
+cluster, is in [`k8s/README.md`](k8s/README.md).
 
 ## Theming
 

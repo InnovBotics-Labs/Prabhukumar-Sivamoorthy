@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# "No registry yet" overlay: runs the image you built on your laptop and
+# imported straight into a worker's containerd (k8s/README.md, Option B).
+# Production is k8s/base with the Artifact Registry image.
+resources:
+  - ../../base
+
+patches:
+  - path: patch-local-image.yaml
+    target:
+      kind: Deployment
+      name: portfolio

@@ -13,7 +13,6 @@ coverage
 
 # Not needed inside the image
 k8s
-render.yaml
 scripts
 *.md
 .env*
