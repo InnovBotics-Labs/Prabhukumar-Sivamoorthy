@@ -4,7 +4,7 @@
    JSON, YAML, XML, CSV, TSV, TOML. The CDN globals are replaced with
    bundled npm imports, so every format is always available.
    ============================================================ */
-import yaml from "js-yaml";
+import * as yaml from "js-yaml"; // namespace import: js-yaml 5 has no default export
 import Papa from "papaparse";
 import { parse as tomlParse, stringify as tomlStringify } from "smol-toml";
 
