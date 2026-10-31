@@ -11,7 +11,7 @@ GitHub push (Portfolio_AD) ─► Actions: docker build + push ─► Artifact R
                                                                      │ pull (gar-pull secret)
                   kubectl apply -k k8s/base ─► Deployment ─► Service ─► Ingress (ingress-nginx)
                                                                                   ▲
-                                            LAN: http://portfolio.home.lab:31409 ─┘
+                                            LAN: http://prabhukumar.sivamoorthy:31409 ─┘
 ```
 
 ## This cluster
@@ -111,7 +111,7 @@ kubectl --context homelab -n portfolio create secret docker-registry gar-pull \
 1. Edit `k8s/base/kustomization.yaml`: set `images[0].newName` to your image
    path (`REGION-docker.pkg.dev/PROJECT_ID/REPO/portfolio`).
 2. Edit `k8s/base/ingress.yaml` if you want a different LAN hostname than
-   `portfolio.home.lab`.
+   `prabhukumar.sivamoorthy`.
 3. Apply and watch the rollout:
    ```bash
    kubectl kustomize k8s/base                      # preview the rendered YAML
@@ -160,12 +160,12 @@ ingress-nginx is a NodePort service, so HTTP is on port `31409` of **any** node.
    `C:\Windows\System32\drivers\etc\hosts` on Windows), or add a record in your
    router / Pi-hole / local DNS:
    ```
-   10.0.0.131  portfolio.home.lab
+   10.0.0.131  prabhukumar.sivamoorthy
    ```
-2. Open `http://portfolio.home.lab:31409/`.
+2. Open `http://prabhukumar.sivamoorthy:31409/`.
 3. Fallback check without touching DNS:
    ```bash
-   curl -H "Host: portfolio.home.lab" http://10.0.0.131:31409/api/health
+   curl -H "Host: prabhukumar.sivamoorthy" http://10.0.0.131:31409/api/health
    ```
 
 To lose the `:31409` later, install MetalLB and switch the
