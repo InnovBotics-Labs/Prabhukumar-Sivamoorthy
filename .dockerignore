@@ -1,0 +1,21 @@
+# Keep the Docker build context small and never copy a host build into the image.
+node_modules
+.next
+out
+build
+coverage
+
+.git
+.github
+.idea
+.claude
+.DS_Store
+
+# Not needed inside the image
+k8s
+render.yaml
+scripts
+*.md
+.env*
+*.pem
+npm-debug.log*
