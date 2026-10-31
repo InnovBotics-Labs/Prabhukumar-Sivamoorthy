@@ -49,7 +49,7 @@ public/
   pdf-editor/      vendored PDF runtime assets (pdf.js worker, qpdf-wasm glue)
 Dockerfile         multi-stage image (Next standalone output) for the Kubernetes deploy
 k8s/               Kustomize manifests (base + local overlay) + deploy runbook (k8s/README.md)
-.github/workflows/ builds and pushes the image to Google Artifact Registry
+.github/workflows/ builds and pushes the image to GitHub Container Registry (GHCR)
 ```
 
 The two tools live in `app/(tool)/` and are loaded with `dynamic(..., { ssr:
@@ -60,7 +60,7 @@ clipboard) and must not run during SSR/prerender.
 
 The site runs as a Node container on a home-lab Kubernetes cluster (SSR and
 API routes rule out a static export). The `Dockerfile` builds Next's standalone
-output, GitHub Actions pushes the image to Google Artifact Registry on pushes to
+output, GitHub Actions pushes the image to GitHub Container Registry (GHCR) on pushes to
 `Portfolio_AD`, and `kubectl apply -k k8s/base` rolls it out behind ingress-nginx.
 The step-by-step runbook, including a registry-free path for testing on the
 cluster, is in [`k8s/README.md`](k8s/README.md).

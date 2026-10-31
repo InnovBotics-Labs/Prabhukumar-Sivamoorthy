@@ -2,13 +2,13 @@
 
 The app is a Next.js server (SSR + API routes), so it runs as a container
 behind an Ingress, not as static files. This folder holds the Kustomize
-manifests; the image is built from the repo `Dockerfile` and pushed to Google
-Artifact Registry by `.github/workflows/build-image.yml` on every push to
-`Portfolio_AD`.
+manifests; the image is built from the repo `Dockerfile` and pushed to GitHub
+Container Registry (GHCR) by `.github/workflows/build-image.yml` on every push to
+`Portfolio_AD`. The package is public, so the cluster pulls it with no credentials.
 
 ```
-GitHub push (Portfolio_AD) ─► Actions: docker build + push ─► Artifact Registry
-                                                                     │ pull (gar-pull secret)
+GitHub push (Portfolio_AD) ─► Actions: docker build + push ─► ghcr.io/innovbotics-labs/prabhukumar-sivamoorthy
+                                                                     │ anonymous pull (public package)
                   kubectl apply -k k8s/base ─► Deployment ─► Service ─► Ingress (ingress-nginx)
                                                                                   ▲
                                             LAN: http://prabhukumar.sivamoorthy:31409 ─┘
@@ -43,47 +43,39 @@ kubectl --context homelab get nodes   # expect cp-cap, wk-bucky, wk-falcon
 Every command below passes `--context homelab` explicitly so a different default
 context (minikube, docker-desktop) can never receive these manifests by accident.
 
-## 1. GCP one-time setup (Artifact Registry)
+## 1. GitHub: first image build
 
-1. Pick a project and region (e.g. `us-central1`). In the console or with gcloud:
-   ```bash
-   gcloud artifacts repositories create portfolio \
-     --repository-format=docker --location=us-central1
-   ```
-2. Create a service account and give it write access (used by GitHub Actions)
-   and read access (used by the cluster to pull). One account with the writer
-   role covers both for a home lab:
-   ```bash
-   gcloud iam service-accounts create portfolio-ci
-   SA=portfolio-ci@PROJECT_ID.iam.gserviceaccount.com
-   gcloud projects add-iam-policy-binding PROJECT_ID --member="serviceAccount:$SA" --role=roles/artifactregistry.writer
-   gcloud iam service-accounts keys create gar-key.json --iam-account="$SA"
-   ```
-   Store `gar-key.json` outside the project folder; never commit it.
+Nothing to pre-create. The workflow authenticates with the built-in
+`GITHUB_TOKEN` and the package is created on the first push.
 
-## 2. GitHub: configure and run the image build
+1. Org → Settings → Packages: package creation for public packages must be
+   allowed (it is by default).
+2. Push to `Portfolio_AD`, or run **Build and push image** from the Actions
+   tab. The job summary lists the pushed tags
+   (`ghcr.io/innovbotics-labs/prabhukumar-sivamoorthy:<sha>` and `:latest`).
+3. **One time, after the first push:** repo → Packages →
+   `prabhukumar-sivamoorthy` → Package settings → Danger Zone → Change
+   visibility → **Public**. From now on the cluster pulls anonymously.
 
-Repository → Settings → Secrets and variables → Actions:
+## 2. Only if you keep the package private
 
-| Kind     | Name              | Value                                  |
-|----------|-------------------|----------------------------------------|
-| Variable | `GCP_PROJECT_ID`  | your GCP project id                    |
-| Variable | `GAR_REGION`      | e.g. `us-central1`                     |
-| Variable | `GAR_REPOSITORY`  | `portfolio` (the repo from step 1)     |
-| Secret   | `GCP_SA_KEY`      | full contents of `gar-key.json`        |
-
-Push to `Portfolio_AD` or run **Build and push image** from the Actions tab.
-The job summary prints the pushed tags. Confirm the image shows up under
-Artifact Registry in the GCP console.
-
-## 3. Optional: build and push from your laptop (no gcloud needed)
+Skip this if the package is public. Otherwise create a classic personal access
+token with the `read:packages` scope and give the cluster a pull secret:
 
 ```bash
-REGION=us-central1; PROJECT_ID=...; REPO=portfolio
-IMAGE=$REGION-docker.pkg.dev/$PROJECT_ID/$REPO/portfolio
+kubectl --context homelab create namespace portfolio
+kubectl --context homelab -n portfolio create secret docker-registry ghcr-pull \
+  --docker-server=ghcr.io --docker-username=<github-username> --docker-password=<PAT>
+```
 
+Then uncomment the `imagePullSecrets` block in `k8s/base/deployment.yaml`.
+
+## 3. Optional: build and push from your laptop
+
+```bash
+IMAGE=ghcr.io/innovbotics-labs/prabhukumar-sivamoorthy
 docker build -t $IMAGE:latest .
-cat /path/to/gar-key.json | docker login -u _json_key --password-stdin $REGION-docker.pkg.dev
+echo <PAT-with-write:packages> | docker login ghcr.io -u <github-username> --password-stdin
 docker push $IMAGE:latest
 ```
 
@@ -94,22 +86,15 @@ docker run --rm -p 3000:3000 $IMAGE:latest
 curl -s localhost:3000/api/health      # {"status":"ok"}
 ```
 
-## 4. Cluster: namespace and image pull secret
+## 4. Cluster: namespace
 
-The cluster is not GKE, so it needs credentials to pull from Artifact Registry.
+`kubectl apply -k k8s/base` creates the `portfolio` namespace itself, so there
+is nothing to do here for the public-image path.
 
-```bash
-kubectl --context homelab create namespace portfolio
-kubectl --context homelab -n portfolio create secret docker-registry gar-pull \
-  --docker-server=$REGION-docker.pkg.dev \
-  --docker-username=_json_key \
-  --docker-password="$(cat /path/to/gar-key.json)"
-```
+## 5. Deploy (Option A: from GHCR)
 
-## 5. Deploy (Option A: from Artifact Registry)
-
-1. Edit `k8s/base/kustomization.yaml`: set `images[0].newName` to your image
-   path (`REGION-docker.pkg.dev/PROJECT_ID/REPO/portfolio`).
+1. `k8s/base/kustomization.yaml` already points at the GHCR image; change
+   `newTag` only if you want to pin a commit SHA.
 2. Edit `k8s/base/ingress.yaml` if you want a different LAN hostname than
    `prabhukumar.sivamoorthy`.
 3. Apply and watch the rollout:
@@ -121,14 +106,13 @@ kubectl --context homelab -n portfolio create secret docker-registry gar-pull \
    ```
    If the pod sits in `ImagePullBackOff`, run
    `kubectl --context homelab -n portfolio describe pod -l app.kubernetes.io/name=portfolio`;
-   it is almost always the pull secret or a typo in the image path.
+   it is almost always the package still being private (step 1.3).
 
 ## 5b. Deploy (Option B: no registry yet)
 
-Use this to see the site on the cluster before GCP is set up. The image is built
+Use this to see the site on the cluster without pushing an image anywhere. The image is built
 on your laptop and imported straight into one worker's containerd; the
-`k8s/overlays/local` overlay pins the pod to that worker (`wk-bucky`) and skips
-the pull secret.
+`k8s/overlays/local` overlay pins the pod to that worker (`wk-bucky`).
 
 ```bash
 docker build -t portfolio:local .

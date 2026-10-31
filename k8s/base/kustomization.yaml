@@ -16,12 +16,10 @@ labels:
   - pairs:
       app.kubernetes.io/part-of: prabhukumar-sivamoorthy
 
-# The ONE place to point at your registry. Replace REGION / PROJECT_ID / REPO
-# with the Artifact Registry values from k8s/README.md step 1, e.g.
-#   us-central1-docker.pkg.dev/my-gcp-project/portfolio/portfolio
-# Pin newTag to a commit SHA for exact rollouts, or leave "latest" and use
-#   kubectl -n portfolio rollout restart deploy/portfolio
+# Image published by .github/workflows/build-image.yml. Pin newTag to a commit
+# SHA for exact rollouts, or leave "latest" and use
+#   kubectl --context homelab -n portfolio rollout restart deploy/portfolio
 images:
   - name: portfolio
-    newName: REGION-docker.pkg.dev/PROJECT_ID/REPO/portfolio
+    newName: ghcr.io/innovbotics-labs/prabhukumar-sivamoorthy
     newTag: latest

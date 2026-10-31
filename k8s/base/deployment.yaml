@@ -18,10 +18,11 @@ spec:
       labels:
         app.kubernetes.io/name: portfolio
     spec:
-      # Created out-of-band (k8s/README.md step 4). Lets a non-GKE cluster
-      # pull from Google Artifact Registry.
-      imagePullSecrets:
-        - name: gar-pull
+      # The GHCR package is public, so no imagePullSecrets are needed. If you
+      # make it private, create a `ghcr-pull` docker-registry secret
+      # (k8s/README.md step 2) and add:
+      # imagePullSecrets:
+      #   - name: ghcr-pull
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001

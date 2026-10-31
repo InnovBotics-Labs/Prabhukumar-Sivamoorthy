@@ -3,7 +3,7 @@ kind: Kustomization
 
 # "No registry yet" overlay: runs the image you built on your laptop and
 # imported straight into a worker's containerd (k8s/README.md, Option B).
-# Production is k8s/base with the Artifact Registry image.
+# Production is k8s/base with the GHCR image.
 resources:
   - ../../base
 

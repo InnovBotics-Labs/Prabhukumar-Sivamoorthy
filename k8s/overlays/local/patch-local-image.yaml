@@ -1,5 +1,5 @@
 # Strategic-merge patch for the local-image overlay:
-#  - no registry, so no pull secret and never try to pull
+#  - no registry, so never try to pull
 #  - pin to the one worker the image was imported on (change the hostname if
 #    you imported it elsewhere, or remove nodeSelector if you imported on all
 #    workers)
@@ -10,7 +10,6 @@ metadata:
 spec:
   template:
     spec:
-      imagePullSecrets: null
       nodeSelector:
         kubernetes.io/hostname: wk-bucky
       containers:
