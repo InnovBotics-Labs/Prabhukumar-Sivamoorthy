@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Everything lands in its own namespace so it is easy to inspect or tear down:
+#   kubectl -n portfolio get all
+#   kubectl delete -k k8s/base
+namespace: portfolio
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: prabhukumar-sivamoorthy
+
+# Image published by .github/workflows/build-image.yml. Pin newTag to a commit
+# SHA for exact rollouts, or leave "latest" and use
+#   kubectl --context homelab -n portfolio rollout restart deploy/portfolio
+images:
+  - name: portfolio
+    newName: ghcr.io/innovbotics-labs/prabhukumar-sivamoorthy
+    newTag: latest

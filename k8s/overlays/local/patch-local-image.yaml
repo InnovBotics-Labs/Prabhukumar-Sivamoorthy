@@ -1,0 +1,20 @@
+# Strategic-merge patch for the local-image overlay:
+#  - no registry, so never try to pull
+#  - pin to the one worker the image was imported on (change the hostname if
+#    you imported it elsewhere, or remove nodeSelector if you imported on all
+#    workers)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portfolio
+spec:
+  template:
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: wk-bucky
+      containers:
+        - name: portfolio
+          # Set here (not via images:) so it works no matter what registry
+          # path the base kustomization points at.
+          image: portfolio:local
+          imagePullPolicy: IfNotPresent

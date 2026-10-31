@@ -32,6 +32,7 @@ app/
     code-formatter/ full-screen code/data formatter (client-only)
   globals.css      the design system, ported verbatim from the prototype (OKLCH tokens, 3 palettes × light/dark); loaded only by (site)
   api/image-slots  empty <image-slot> sidecar (served at /.image-slots.state.json via a rewrite)
+  api/health       liveness/readiness probe for the Kubernetes deployment
 components/
   ThemeProvider    theme / palette / accent / grain / 3D-backdrop state + localStorage; drives window.BG3D
   Reveal           Framer Motion scroll-reveal wrapper (replaces the prototype's .reveal + IntersectionObserver)
@@ -46,11 +47,23 @@ public/
   image-slot.js    drag-drop image placeholder web component — ported verbatim
   apps/            App Store sub-pages + gradient icons
   pdf-editor/      vendored PDF runtime assets (pdf.js worker, qpdf-wasm glue)
+Dockerfile         multi-stage image (Next standalone output) for the Kubernetes deploy
+k8s/               Kustomize manifests (base + local overlay) + deploy runbook (k8s/README.md)
+.github/workflows/ builds and pushes the image to GitHub Container Registry (GHCR)
 ```
 
 The two tools live in `app/(tool)/` and are loaded with `dynamic(..., { ssr:
 false })` because they rely on browser APIs (`window`/`document`/canvas/
 clipboard) and must not run during SSR/prerender.
+
+## Deploy
+
+The site runs as a Node container on a home-lab Kubernetes cluster (SSR and
+API routes rule out a static export). The `Dockerfile` builds Next's standalone
+output, GitHub Actions pushes the image to GitHub Container Registry (GHCR) on pushes to
+`Portfolio_AD`, and `kubectl apply -k k8s/base` rolls it out behind ingress-nginx.
+The step-by-step runbook, including a registry-free path for testing on the
+cluster, is in [`k8s/README.md`](k8s/README.md).
 
 ## Theming
 

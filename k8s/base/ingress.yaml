@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: portfolio
+  annotations:
+    # The PDF editor uploads whole PDFs; lift ingress-nginx's 1m default.
+    nginx.ingress.kubernetes.io/proxy-body-size: 64m
+    # --- Later, for public HTTPS via cert-manager, add: ---
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  rules:
+    # LAN-only for now. Point this name at the ingress-nginx IP in your hosts
+    # file or local DNS (k8s/README.md step 6). Change to your real domain when
+    # you expose the site publicly.
+    - host: prabhukumar.sivamoorthy
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: portfolio
+                port:
+                  name: http
+  # --- Later, for public HTTPS: ---
+  # tls:
+  #   - hosts: [your.domain.example]
+  #     secretName: portfolio-tls
