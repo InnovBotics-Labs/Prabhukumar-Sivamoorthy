@@ -4,10 +4,9 @@ name: Build and push image
 # every push to the deploy branch. Rolling it out to the cluster is a manual
 # `kubectl` step (see k8s/README.md step 5).
 #
-# No secrets to configure: the job authenticates with the built-in GITHUB_TOKEN.
-# After the FIRST push, set the package's visibility to Public once
-# (repo -> Packages -> prabhukumar-sivamoorthy -> Package settings) so the
-# cluster can pull it without credentials.
+# No secrets to configure here: the job authenticates with the built-in
+# GITHUB_TOKEN. The package stays private (org policy), so the cluster pulls
+# it with the `ghcr-pull` secret described in k8s/README.md step 2.
 
 on:
   push:
