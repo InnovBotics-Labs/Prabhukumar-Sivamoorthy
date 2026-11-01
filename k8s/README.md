@@ -4,11 +4,12 @@ The app is a Next.js server (SSR + API routes), so it runs as a container
 behind an Ingress, not as static files. This folder holds the Kustomize
 manifests; the image is built from the repo `Dockerfile` and pushed to GitHub
 Container Registry (GHCR) by `.github/workflows/build-image.yml` on every push to
-`Portfolio_AD`. The package is public, so the cluster pulls it with no credentials.
+`Portfolio_AD`. The package is private (org policy blocks public packages), so
+the cluster pulls it with a `ghcr-pull` secret made from a read:packages token.
 
 ```
 GitHub push (Portfolio_AD) ─► Actions: docker build + push ─► ghcr.io/innovbotics-labs/prabhukumar-sivamoorthy
-                                                                     │ anonymous pull (public package)
+                                                                     │ pull (ghcr-pull secret)
                   kubectl apply -k k8s/base ─► Deployment ─► Service ─► Ingress (ingress-nginx)
                                                                                   ▲
                                             LAN: http://prabhukumar.sivamoorthy:31409 ─┘
@@ -43,39 +44,48 @@ kubectl --context homelab get nodes   # expect cp-cap, wk-bucky, wk-falcon
 Every command below passes `--context homelab` explicitly so a different default
 context (minikube, docker-desktop) can never receive these manifests by accident.
 
-## 1. GitHub: first image build
+## 1. GitHub: image build
 
 Nothing to pre-create. The workflow authenticates with the built-in
-`GITHUB_TOKEN` and the package is created on the first push.
+`GITHUB_TOKEN` and the package `ghcr.io/innovbotics-labs/prabhukumar-sivamoorthy`
+is created on the first push to `Portfolio_AD` (or a manual run of **Build and
+push image** from the Actions tab). The job summary lists the pushed tags.
 
-1. Org → Settings → Packages: package creation for public packages must be
-   allowed (it is by default).
-2. Push to `Portfolio_AD`, or run **Build and push image** from the Actions
-   tab. The job summary lists the pushed tags
-   (`ghcr.io/innovbotics-labs/prabhukumar-sivamoorthy:<sha>` and `:latest`).
-3. **One time, after the first push:** repo → Packages →
-   `prabhukumar-sivamoorthy` → Package settings → Danger Zone → Change
-   visibility → **Public**. From now on the cluster pulls anonymously.
+The package stays **private**: making it public needs an org-level setting in
+InnovBotics-Labs that is not enabled.
 
-## 2. Only if you keep the package private
+## 2. Cluster: pull secret for the private package
 
-Skip this if the package is public. Otherwise create a classic personal access
-token with the `read:packages` scope and give the cluster a pull secret:
+1. Create a classic personal access token at
+   https://github.com/settings/tokens/new with only the **`read:packages`**
+   scope (name it e.g. `homelab-ghcr-pull`, pick an expiry you can live with).
+   If the org enforces SSO, click **Configure SSO** on the token and authorise
+   InnovBotics-Labs.
+2. From your laptop, create the namespace and the secret. `read -s` keeps the
+   token out of your shell history and terminal:
+   ```bash
+   read -s GHCR_PAT   # paste the token, press Enter
+   kubectl --context homelab create namespace portfolio
+   kubectl --context homelab -n portfolio create secret docker-registry ghcr-pull \
+     --docker-server=ghcr.io \
+     --docker-username=<your-github-username> \
+     --docker-password="$GHCR_PAT"
+   unset GHCR_PAT
+   ```
+3. Check it: `kubectl --context homelab -n portfolio get secret ghcr-pull`.
 
-```bash
-kubectl --context homelab create namespace portfolio
-kubectl --context homelab -n portfolio create secret docker-registry ghcr-pull \
-  --docker-server=ghcr.io --docker-username=<github-username> --docker-password=<PAT>
-```
-
-Then uncomment the `imagePullSecrets` block in `k8s/base/deployment.yaml`.
+When the token expires, pods keep running but new pulls fail with
+`ImagePullBackOff`. Create a new token and replace the secret:
+`kubectl --context homelab -n portfolio delete secret ghcr-pull` then step 2 again.
 
 ## 3. Optional: build and push from your laptop
+
+Needs a token with `write:packages` (the read-only one from step 2 is not enough).
 
 ```bash
 IMAGE=ghcr.io/innovbotics-labs/prabhukumar-sivamoorthy
 docker build -t $IMAGE:latest .
-echo <PAT-with-write:packages> | docker login ghcr.io -u <github-username> --password-stdin
+read -s GHCR_PAT && echo "$GHCR_PAT" | docker login ghcr.io -u <github-username> --password-stdin && unset GHCR_PAT
 docker push $IMAGE:latest
 ```
 
@@ -88,8 +98,8 @@ curl -s localhost:3000/api/health      # {"status":"ok"}
 
 ## 4. Cluster: namespace
 
-`kubectl apply -k k8s/base` creates the `portfolio` namespace itself, so there
-is nothing to do here for the public-image path.
+Created in step 2. (`kubectl apply -k k8s/base` would also create it, but the
+pull secret has to exist before the first pod starts.)
 
 ## 5. Deploy (Option A: from GHCR)
 
@@ -106,13 +116,15 @@ is nothing to do here for the public-image path.
    ```
    If the pod sits in `ImagePullBackOff`, run
    `kubectl --context homelab -n portfolio describe pod -l app.kubernetes.io/name=portfolio`;
-   it is almost always the package still being private (step 1.3).
+   it is almost always the `ghcr-pull` secret: missing, wrong username, or an
+   expired token (step 2).
 
 ## 5b. Deploy (Option B: no registry yet)
 
 Use this to see the site on the cluster without pushing an image anywhere. The image is built
 on your laptop and imported straight into one worker's containerd; the
-`k8s/overlays/local` overlay pins the pod to that worker (`wk-bucky`).
+`k8s/overlays/local` overlay pins the pod to that worker (`wk-bucky`) and skips
+the pull secret.
 
 ```bash
 docker build -t portfolio:local .
